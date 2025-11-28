@@ -1,872 +1,873 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extrusion Inventory System</title>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <script src='https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js'></script>
-
-    <style>
-        /* =========================================
-           CSS 樣式設定
-           ========================================= */
-        * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 10px; background-color: #222; color: #fff; }
-        
-        h2 { text-align: center; margin-bottom: 10px; font-size: 2.1rem; color: #eee; font-weight: bold; letter-spacing: 1px; }
-
-        /* =========================================
-           🔐 新增：登入鎖定畫面樣式
-           ========================================= */
-        #login-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #000; z-index: 9999;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
+<!DOCTYPE html> 
+<html lang="zh-TW"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>Extrusion Inventory (Login Secured)</title> 
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script> 
+    <script src='https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js'></script> 
+ 
+    <style> 
+        /* 全域設定 */ 
+        * { box-sizing: border-box; } 
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 10px; background-color: #222; color: #fff; } 
+          
+        h2 { text-align: center; margin-bottom: 10px; font-size: 2.5rem; color: #eee; font-weight: bold; letter-spacing: 1px; } 
+ 
+        /* ========================================= */
+        /* 🔒 登入畫面樣式 (新增部分)                 */
+        /* ========================================= */
+        #login-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000;
+            z-index: 10000; /* 最高層級，蓋住所有內容 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
         }
         .login-box {
-            background: #333; padding: 30px; border-radius: 12px; border: 1px solid #555;
-            text-align: center; width: 90%; max-width: 350px;
-            box-shadow: 0 0 20px rgba(0, 123, 255, 0.3);
+            background: #333;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #555;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            width: 90%;
+            max-width: 350px;
         }
-        .login-box h3 { margin-top: 0; color: #fff; margin-bottom: 20px; }
+        .login-box h3 { margin-top: 0; color: #ffc107; margin-bottom: 20px;}
         .login-input {
-            width: 100%; padding: 12px; font-size: 1.2rem; text-align: center;
-            border-radius: 6px; border: 1px solid #555; background: #222; color: white;
-            margin-bottom: 15px; letter-spacing: 2px;
+            width: 100%; padding: 12px; margin-bottom: 15px;
+            border-radius: 5px; border: 1px solid #666;
+            background: #222; color: #fff; font-size: 1.2rem; text-align: center; letter-spacing: 2px;
         }
-        .login-btn {
-            width: 100%; padding: 12px; font-size: 1.1rem; font-weight: bold;
-            border: none; border-radius: 6px; cursor: pointer;
-            background: #007bff; color: white; transition: 0.3s;
+        .btn-unlock {
+            width: 100%; padding: 12px; border: none; border-radius: 5px;
+            background: #28a745; color: white; font-weight: bold; font-size: 1rem; cursor: pointer;
         }
-        .login-btn:active { transform: scale(0.98); }
+        .btn-unlock:active { transform: scale(0.98); }
 
-        /* 人員代號輸入區 */
-        .user-bar {
-            display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px;
-            background: #2c3e50; padding: 10px 15px; border-radius: 8px; border: 2px solid #007bff; width: 100%;
-            box-shadow: 0 0 10px rgba(0, 123, 255, 0.2);
-        }
-        .user-bar label { font-weight: bold; color: #5dade2; white-space: nowrap; font-size: 1rem; }
-        .input-field {
-            flex: 1; min-width: 100px; padding: 8px; border: 1px solid #555; border-radius: 4px;
-            background: #fff; color: #000; font-size: 1.1rem; letter-spacing: 1px; font-weight: bold;
-        }
-        
-        /* 🔒 新增：鎖定按鈕 */
-        .btn-lock {
-            background-color: #dc3545; color: white; border: none; padding: 8px 12px;
-            border-radius: 6px; cursor: pointer; font-size: 1.2rem;
-            display: flex; align-items: center; justify-content: center;
-        }
-
-        /* 模式切換按鈕 */
-        .mode-switch { display: flex; gap: 8px; margin-bottom: 10px; }
-        .mode-btn { 
-            flex: 1; padding: 8px; border: none; border-radius: 20px; 
-            background: #333; color: #aaa; font-weight: bold; cursor: pointer; transition: 0.3s; 
-            display: flex; flex-direction: column; align-items: center; line-height: 1.2; font-size: 0.9rem;
-        }
-        .mode-btn small { font-size: 0.7rem; font-weight: normal; opacity: 0.8; }
-        .mode-btn.active { background: #007bff; color: white; box-shadow: 0 0 10px rgba(0,123,255,0.5); }
-
-        /* 視窗區域 */
-        .viewport { 
-            position: relative; 
-            width: 100%; 
-            height: 50vh; 
-            background: black; 
-            border-radius: 10px; 
-            overflow: hidden; 
-            margin-bottom: 10px;
-            border: 1px solid #444;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            z-index: 1;
-        }
-        #reader, #ocr-video { width: 100%; height: 100%; object-fit: cover; }
-        #ocr-video { display: none; }
-
-        .scan-guide-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; display: none; z-index: 10;
-        }
-        .guide-box {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 96%; 
-            height: 50px;
-            border: 2px solid #ff4d4d; 
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
-            border-radius: 4px;
-            transition: 0.3s all;
-        }
-        .guide-box.ready { border-color: #00ff00; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.8); }
-        .guide-box.paused { border-color: #007bff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); }
-
-        .guide-line {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 280px; 
-            max-width: 90%;
-            height: 30px; 
-            background-color: rgba(255, 77, 77, 0.3); 
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            transition: 0.3s all;
-            box-shadow: 0 0 2px rgba(255,0,0,0.5);
-        }
-        .guide-box.ready .guide-line { background-color: rgba(0, 255, 0, 0.3); }
-        .guide-box.paused .guide-line { background-color: rgba(0, 123, 255, 0.3); }
-
-        .guide-text {
-            position: absolute; top: -45px; left: 0; width: 100%;
-            text-align: center; color: #ff4d4d; font-size: 0.9rem; font-weight: bold;
-            text-shadow: 1px 1px 2px black;
-            transition: 0.3s all;
-            background: rgba(0,0,0,0.6);
-            padding: 4px 0;
-            border-radius: 4px;
-        }
-        .guide-box.ready .guide-text { color: #00ff00; content: "✅ Ready"; }
-        .guide-box.paused .guide-text { color: #007bff; }
-
-        /* 功能按鈕區 */
-        .controls { display: flex; gap: 8px; padding: 5px 0; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap;}
-        
-        button.action-btn { 
-            padding: 8px 5px; border: none; border-radius: 8px; cursor: pointer; 
-            font-weight: bold; font-size: 0.9rem; color: white; transition: 0.2s;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            line-height: 1.2;
-            position: relative;
-            z-index: 100;
-            flex: 1;
-            min-width: 60px;
-        }
-        button.action-btn small { font-size: 0.7rem; font-weight: normal; opacity: 0.9; margin-top: 2px; }
-
-        .btn-clear { background-color: #6c757d; } 
-        .btn-flash { background-color: #ffc107; color: #333 !important; }
-        .btn-export { background-color: #28a745; }
-        .btn-settings { background-color: #17a2b8; }
-        .btn-upload { background-color: #007bff; }
-        .btn-sheet { background-color: #6610f2; } 
-
-        #loading-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none;
-            justify-content: center; align-items: center; flex-direction: column; z-index: 20;
-        }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #dc3545; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px;}
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* 表格樣式 */
-        .table-container { margin-top: 0; overflow-x: auto; background: #fff; border-radius: 8px; color: #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        table { width: 100%; border-collapse: collapse; min-width: 100%; }
-        
-        th, td { padding: 10px 6px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.85rem; vertical-align: middle; }
-        th { background-color: #333; color: white; white-space: nowrap; font-weight: bold; }
-        
-        .code-col { width: 30%; word-break: break-all; } 
-        .loc-col { width: 15%; text-align: center; }      
-        .name-col { width: 20%; }                          
-        
-        th.qty-col, td.qty-col { 
-            width: 10%; 
-            text-align: center; 
-            font-weight: bold; 
-            background-color: #000 !important; 
-            color: #fff !important; 
+        /* 人員代號輸入區 */ 
+        .user-bar { 
+            display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; 
+            background: #2c3e50; padding: 10px 15px; border-radius: 8px; border: 2px solid #007bff; width: 100%; 
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.2); 
+        } 
+        .user-bar label { font-weight: bold; color: #5dade2; white-space: nowrap; font-size: 1rem; } 
+        .input-field { 
+            flex: 1; min-width: 100px; padding: 8px; border: 1px solid #555; border-radius: 4px; 
+            background: #fff; color: #000; font-size: 1.1rem; letter-spacing: 1px; font-weight: bold; 
         } 
         
-        .action-col { width: 25%; text-align: center; white-space: nowrap; }
-
-        tr:nth-child(even) { background-color: #f8f9fa; }
-        
-        .tbl-btn { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin: 0 2px; }
-        .tbl-btn.edit { background-color: #ffc107; color: #000; }
-        .tbl-btn.del { background-color: #dc3545; color: #fff; }
-        
-        .editable-code { color: #007bff; cursor: pointer; text-decoration: underline; font-weight: bold; }
-        
-        /* Modal 設定視窗 */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; justify-content: center; align-items: center; }
-        .modal-content { background: #333; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; border: 1px solid #555; max-height: 80vh; overflow-y: auto; }
-        .modal h3 { text-align: center; color: #17a2b8; margin-bottom: 15px; }
-        .setting-group { margin-bottom: 15px; }
-        .setting-group label { display: block; margin-bottom: 5px; color: #ccc; font-size: 0.9rem; }
-        .setting-group input, .setting-group select { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: white; }
-        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-
-        /* 唯讀輸入框樣式 */
-        .input-readonly {
-            background-color: #444 !important;
-            color: #aaa !important;
-            border: none !important;
-            cursor: not-allowed;
-            font-size: 0.8rem;
+        /* 鎖定按鈕樣式 */
+        .btn-lock-user {
+            background-color: #dc3545; color: white; border: none; padding: 8px 12px;
+            border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.9rem;
         }
-    </style>
-</head>
-<body>
+          
+        /* 模式切換按鈕 */ 
+        .mode-switch { display: flex; gap: 8px; margin-bottom: 10px; } 
+        .mode-btn {  
+            flex: 1; padding: 8px; border: none; border-radius: 20px;  
+            background: #333; color: #aaa; font-weight: bold; cursor: pointer; transition: 0.3s;  
+            display: flex; flex-direction: column; align-items: center; line-height: 1.2; font-size: 0.9rem; 
+        } 
+        .mode-btn small { font-size: 0.7rem; font-weight: normal; opacity: 0.8; } 
+        .mode-btn.active { background: #007bff; color: white; box-shadow: 0 0 10px rgba(0,123,255,0.5); } 
+ 
+        /* 視窗區域 */ 
+        .viewport {  
+            position: relative;  
+            width: 100%;  
+            height: 50vh;  
+            background: black;  
+            border-radius: 10px;  
+            overflow: hidden;  
+            margin-bottom: 10px; 
+            border: 1px solid #444; 
+            cursor: pointer; 
+            -webkit-tap-highlight-color: transparent; 
+            z-index: 1; 
+        } 
+        #reader, #ocr-video { width: 100%; height: 100%; object-fit: cover; } 
+        #ocr-video { display: none; } 
+ 
+        .scan-guide-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            pointer-events: none; display: none; z-index: 10; 
+        } 
+        .guide-box { 
+            position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            width: 96%;  
+            height: 50px; 
+            border: 2px solid #ff4d4d;  
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7); 
+            border-radius: 4px; 
+            transition: 0.3s all; 
+        } 
+        .guide-box.ready { border-color: #00ff00; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.8); } 
+        .guide-box.paused { border-color: #007bff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); } 
+ 
+        .guide-line { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            width: 280px;  
+            max-width: 90%; 
+            height: 30px;  
+            background-color: rgba(255, 77, 77, 0.3);  
+            transform: translate(-50%, -50%); 
+            pointer-events: none; 
+            transition: 0.3s all; 
+            box-shadow: 0 0 2px rgba(255,0,0,0.5); 
+        } 
+        .guide-box.ready .guide-line { background-color: rgba(0, 255, 0, 0.3); } 
+        .guide-box.paused .guide-line { background-color: rgba(0, 123, 255, 0.3); } 
+ 
+        .guide-text { 
+            position: absolute; top: -45px; left: 0; width: 100%; 
+            text-align: center; color: #ff4d4d; font-size: 0.9rem; font-weight: bold; 
+            text-shadow: 1px 1px 2px black; 
+            transition: 0.3s all; 
+            background: rgba(0,0,0,0.6); 
+            padding: 4px 0; 
+            border-radius: 4px; 
+        } 
+        .guide-box.ready .guide-text { color: #00ff00; content: "✅ Ready"; } 
+        .guide-box.paused .guide-text { color: #007bff; } 
+ 
+        /* 按鈕 */ 
+        .controls { display: flex; gap: 8px; padding: 5px 0; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap;} 
+          
+        button.action-btn {  
+            padding: 8px 5px; border: none; border-radius: 8px; cursor: pointer;  
+            font-weight: bold; font-size: 0.9rem; color: white; transition: 0.2s; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            line-height: 1.2; 
+            position: relative; 
+            z-index: 100; 
+            flex: 1; 
+            min-width: 60px; 
+        } 
+        button.action-btn small { font-size: 0.7rem; font-weight: normal; opacity: 0.9; margin-top: 2px; } 
+ 
+        .btn-clear { background-color: #6c757d; }  
+        .btn-flash { background-color: #ffc107; color: #333 !important; } 
+        .btn-export { background-color: #28a745; } 
+        .btn-settings { background-color: #17a2b8; } 
+        .btn-upload { background-color: #007bff; } 
+        .btn-sheet { background-color: #6610f2; }  
+ 
+        #loading-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.85); display: none; 
+            justify-content: center; align-items: center; flex-direction: column; z-index: 20; 
+        } 
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #dc3545; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px;} 
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } 
+ 
+        /* 表格樣式 */ 
+        .table-container { margin-top: 0; overflow-x: auto; background: #fff; border-radius: 8px; color: #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3); } 
+        table { width: 100%; border-collapse: collapse; min-width: 100%; } 
+          
+        th, td { padding: 10px 6px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.85rem; vertical-align: middle; } 
+        th { background-color: #333; color: white; white-space: nowrap; font-weight: bold; } 
+          
+        .code-col { width: 30%; word-break: break-all; }  
+        .loc-col { width: 15%; text-align: center; }        
+        .name-col { width: 20%; }                          
+          
+        th.qty-col, td.qty-col {  
+            width: 10%;  
+            text-align: center;  
+            font-weight: bold;  
+            background-color: #000 !important;  
+            color: #fff !important;  
+        }  
+          
+        .action-col { width: 25%; text-align: center; white-space: nowrap; } 
+ 
+        tr:nth-child(even) { background-color: #f8f9fa; } 
+          
+        .tbl-btn { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin: 0 2px; } 
+        .tbl-btn.edit { background-color: #ffc107; color: #000; } 
+        .tbl-btn.del { background-color: #dc3545; color: #fff; } 
+          
+        .editable-code { color: #007bff; cursor: pointer; text-decoration: underline; font-weight: bold; } 
+          
+        /* Modal */ 
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; justify-content: center; align-items: center; } 
+        .modal-content { background: #333; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; border: 1px solid #555; max-height: 80vh; overflow-y: auto; } 
+        .modal h3 { text-align: center; color: #17a2b8; margin-bottom: 15px; } 
+        .setting-group { margin-bottom: 15px; } 
+        .setting-group label { display: block; margin-bottom: 5px; color: #ccc; font-size: 0.9rem; } 
+        .setting-group input, .setting-group select { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: white; } 
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; } 
+ 
+        /* 唯讀輸入框樣式 */ 
+        .input-readonly { 
+            background-color: #444 !important; 
+            color: #aaa !important; 
+            border: none !important; 
+            cursor: not-allowed; 
+            font-size: 0.8rem; 
+        } 
+    </style> 
+</head> 
+<body> 
 
-    <div id="login-screen">
+    <div id="login-overlay">
         <div class="login-box">
-            <h3>🔒 系統鎖定 (Locked)</h3>
-            <input type="password" id="loginPass" class="login-input" placeholder="Enter Password" autofocus>
-            <button class="login-btn" onclick="checkLogin()">登入 (Login)</button>
+            <h3>🔒 系統鎖定 System Locked</h3>
+            <input type="password" id="login-pwd" class="login-input" placeholder="請輸入密碼" inputmode="numeric">
+            <button class="btn-unlock" onclick="checkLogin()">解鎖 (Unlock)</button>
         </div>
     </div>
+ 
+    <h2>Extrusion Inventory</h2> 
+ 
+    <div class="user-bar"> 
+        <label>👤 人員代號 (User):</label> 
+        <input type="text" id="userInput" class="input-field" placeholder="請先輸入代號" onchange="changeUser(this.value)"> 
+        <button class="btn-lock-user" onclick="lockApp()" title="鎖定系統">🔒 鎖定</button>
+    </div> 
+ 
+    <div class="mode-switch"> 
+        <button class="mode-btn active" onclick="switchMode('barcode')"> 
+            條碼/QR<small>Barcode & QR</small> 
+        </button> 
+        <button class="mode-btn" onclick="switchMode('ocr')"> 
+            文字識別<small>OCR Text</small> 
+        </button> 
+    </div> 
+ 
+    <div class="viewport" onclick="handleViewportClick()"> 
+        <div id="reader"></div> 
+        <video id="ocr-video" autoplay playsinline></video> 
+          
+        <div id="ocr-overlay" class="scan-guide-overlay"> 
+            <div class="guide-box" id="guideBox"> 
+                <div class="guide-line"></div> 
+                <div class="guide-text" id="guideText">👆 點擊畫面啟動相機</div> 
+            </div> 
+        </div> 
+ 
+        <div id="loading-overlay"> 
+            <div class="spinner"></div> 
+            <div style="color:white; font-weight:bold;" id="loading-text">分析中...</div> 
+        </div> 
+    </div> 
+ 
+    <div class="controls"> 
+        <button class="btn-clear action-btn" onclick="clearData()"> 
+            🗑️ 清除<small>Clear</small> 
+        </button> 
+          
+        <button id="btn-flash" class="btn-flash action-btn" onclick="toggleTorch()"> 
+            🔦 補光<small>Light</small> 
+        </button> 
+          
+        <button class="btn-settings action-btn" onclick="openSettings()"> 
+            ⚙️ 設定<small>Settings</small> 
+        </button> 
+ 
+        <button class="btn-export action-btn" onclick="exportToExcel()"> 
+            📤 匯出<small>Export</small> 
+        </button> 
+ 
+        <button class="btn-upload action-btn" onclick="uploadToCloud()"> 
+            ☁️ 上傳<small>Cloud</small> 
+        </button> 
+ 
+        <button class="btn-sheet action-btn" onclick="openCloudSheet()"> 
+            📂 雲端<small>Sheet</small> 
+        </button> 
+    </div> 
+ 
+    <div class="table-container"> 
+        <table id="inventoryTable"> 
+            <thead> 
+                <tr> 
+                    <th class="code-col">原始碼 (Code)</th> 
+                    <th class="loc-col">庫位 (Loc)</th> 
+                    <th class="name-col">品名 (Name)</th> 
+                    <th class="qty-col">數量 (Qty)</th> 
+                    <th class="action-col">操作</th> 
+                </tr> 
+            </thead> 
+            <tbody></tbody> 
+        </table> 
+    </div> 
+ 
+    <div id="settingsModal" class="modal"> 
+        <div class="modal-content"> 
+            <h3>⚙️ 系統設定</h3> 
+            <div class="setting-group"> 
+                <label>小數點位數 (0-4):</label> 
+                <select id="set_decimals"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select> 
+            </div> 
+            <div class="setting-group"><label>最少辨識字元 (Min):</label><input type="number" id="set_minLen" value="4"></div> 
+            <div class="setting-group"><label>最多辨識字元 (Max):</label><input type="number" id="set_maxLen" value="50"></div> 
+            <div class="setting-group"> 
+                <label>匯出檔名格式:</label> 
+                <input type="text" id="set_filename" value="USER_YYYYMMDDHHmmss"> 
+                <div style="font-size:0.7rem; color:#aaa; margin-top:3px;">可用: USER, YYYY, MM, DD, HH, mm, ss</div> 
+            </div> 
+              
+            <div class="setting-group"> 
+                <label style="color:#007bff">☁️ Google Script 網址 (上傳用 - 唯讀):</label> 
+                <input type="text" id="display_cloudUrl" class="input-readonly" readonly disabled> 
+            </div> 
+              
+            <div class="setting-group"> 
+                <label style="color:#6610f2">📊 Google 試算表網址 (檢視用 - 唯讀):</label> 
+                <input type="text" id="display_sheetUrl" class="input-readonly" readonly disabled> 
+            </div> 
+ 
+            <div class="modal-actions"> 
+                <button class="action-btn" style="background:#6c757d" onclick="closeSettings()">取消</button> 
+                <button class="action-btn" style="background:#28a745" onclick="saveSettings()">儲存</button> 
+            </div> 
+        </div> 
+    </div> 
+ 
+    <script> 
+        // ========================================== 
+        // 🔧 核心設定區 (System Config) - 網址寫死在此處 
+        // ========================================== 
+        const SYSTEM_CONFIG = { 
+            // Google Script 網址 (上傳用) 
+            API_URL: "https://script.google.com/macros/s/AKfycbwUQxxAoN3Wk_Gtm4ETH-Vwxb40AHo3i9otrsNV-99Bi6V7GfFztSnJX9pNlNGWuq72/exec", 
+              
+            // Google 試算表網址 (檢視用) 
+            SHEET_URL: "https://docs.google.com/spreadsheets/d/1ZjSEp4d_j2zZoCV_xQoMSl7HSA9VcPV7pbE2lXXxUW8/edit?gid=0#gid=0" 
+        }; 
 
-    <h2>Extrusion Inventory</h2>
-
-    <div class="user-bar">
-        <label>👤 人員 (User):</label>
-        <input type="text" id="userInput" class="input-field" placeholder="請先輸入代號" onchange="changeUser(this.value)">
-        
-        <button class="btn-lock" onclick="lockScreen()" title="鎖定畫面 (Lock Screen)">
-            🔒
-        </button>
-    </div>
-
-    <div class="mode-switch">
-        <button class="mode-btn active" onclick="switchMode('barcode')">
-            條碼/QR<small>Barcode & QR</small>
-        </button>
-        <button class="mode-btn" onclick="switchMode('ocr')">
-            文字識別<small>OCR Text</small>
-        </button>
-    </div>
-
-    <div class="viewport" onclick="handleViewportClick()">
-        <div id="reader"></div>
-        <video id="ocr-video" autoplay playsinline></video>
-        
-        <div id="ocr-overlay" class="scan-guide-overlay">
-            <div class="guide-box" id="guideBox">
-                <div class="guide-line"></div>
-                <div class="guide-text" id="guideText">👆 點擊畫面啟動相機</div>
-            </div>
-        </div>
-
-        <div id="loading-overlay">
-            <div class="spinner"></div>
-            <div style="color:white; font-weight:bold;" id="loading-text">分析中...</div>
-        </div>
-    </div>
-
-    <div class="controls">
-        <button class="btn-clear action-btn" onclick="clearData()">
-            🗑️ 清除<small>Clear</small>
-        </button>
-        
-        <button id="btn-flash" class="btn-flash action-btn" onclick="toggleTorch()">
-            🔦 補光<small>Light</small>
-        </button>
-        
-        <button class="btn-settings action-btn" onclick="openSettings()">
-            ⚙️ 設定<small>Settings</small>
-        </button>
-
-        <button class="btn-export action-btn" onclick="exportToExcel()">
-            📤 匯出<small>Export</small>
-        </button>
-
-        <button class="btn-upload action-btn" onclick="uploadToCloud()">
-            ☁️ 上傳<small>Cloud</small>
-        </button>
-
-        <button class="btn-sheet action-btn" onclick="openCloudSheet()">
-            📂 雲端<small>Sheet</small>
-        </button>
-    </div>
-
-    <div class="table-container">
-        <table id="inventoryTable">
-            <thead>
-                <tr>
-                    <th class="code-col">原始碼 (Code)</th>
-                    <th class="loc-col">庫位 (Loc)</th>
-                    <th class="name-col">品名 (Name)</th>
-                    <th class="qty-col">數量 (Qty)</th>
-                    <th class="action-col">操作</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <div id="settingsModal" class="modal">
-        <div class="modal-content">
-            <h3>⚙️ 系統設定</h3>
-            <div class="setting-group">
-                <label>小數點位數 (0-4):</label>
-                <select id="set_decimals"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
-            </div>
-            <div class="setting-group"><label>最少辨識字元 (Min):</label><input type="number" id="set_minLen" value="4"></div>
-            <div class="setting-group"><label>最多辨識字元 (Max):</label><input type="number" id="set_maxLen" value="50"></div>
-            <div class="setting-group">
-                <label>匯出檔名格式:</label>
-                <input type="text" id="set_filename" value="USER_YYYYMMDDHHmmss">
-                <div style="font-size:0.7rem; color:#aaa; margin-top:3px;">可用: USER, YYYY, MM, DD, HH, mm, ss</div>
-            </div>
-            
-            <div class="setting-group">
-                <label style="color:#007bff">☁️ Google Script 網址 (上傳用 - 唯讀):</label>
-                <input type="text" id="display_cloudUrl" class="input-readonly" readonly disabled>
-            </div>
-            
-            <div class="setting-group">
-                <label style="color:#6610f2">📊 Google 試算表網址 (檢視用 - 唯讀):</label>
-                <input type="text" id="display_sheetUrl" class="input-readonly" readonly disabled>
-            </div>
-
-            <div class="modal-actions">
-                <button class="action-btn" style="background:#6c757d" onclick="closeSettings()">取消</button>
-                <button class="action-btn" style="background:#28a745" onclick="saveSettings()">儲存</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // ==========================================
-        // 🔧 核心設定區 & 登入密碼
-        // ==========================================
-        const SYSTEM_CONFIG = {
-            API_URL: "https://script.google.com/macros/s/AKfycbwUQxxAoN3Wk_Gtm4ETH-Vwxb40AHo3i9otrsNV-99Bi6V7GfFztSnJX9pNlNGWuq72/exec",
-            SHEET_URL: "https://docs.google.com/spreadsheets/d/1ZjSEp4d_j2zZoCV_xQoMSl7HSA9VcPV7pbE2lXXxUW8/edit?gid=0#gid=0"
-        };
-        
-        // 🔐 登入密碼設定
+        // 🔑 系統密碼 (可在這裡修改)
         const APP_PASSWORD = "1122334";
+        // ========================================== 
+ 
+        let savedUser = localStorage.getItem('currentUser') || "Default";  
+        document.getElementById('userInput').value = savedUser; 
+        let inventory = {};  
+        let lastLocation = localStorage.getItem('lastLocation') || ""; 
+ 
+        // 讀取一般使用者設定 
+        let appSettings = JSON.parse(localStorage.getItem('appSettings')) || {}; 
+ 
+        if (appSettings.decimals === undefined) appSettings.decimals = 2; 
+        if (appSettings.minLen === undefined) appSettings.minLen = 4; 
+        if (appSettings.maxLen === undefined) appSettings.maxLen = 50; 
+        if (!appSettings.filenameFormat) appSettings.filenameFormat = "USER_YYYYMMDDHHmmss"; 
+ 
+        localStorage.setItem('appSettings', JSON.stringify(appSettings)); 
+ 
+        let html5QrcodeScanner = null; 
+        let ocrStream = null; 
+        let ocrAnalysisInterval = null; 
+        let currentMode = 'barcode';  
+        let videoTrack = null;  
+        let isTorchOn = false; 
+        let isScanning = false;  
+        let isCameraActive = false; 
 
-        // ==========================================
+        // ========================================== 
+        // 🔒 登入/鎖定 功能邏輯
+        // ========================================== 
+        
+        // 頁面載入時聚焦在密碼框
+        window.onload = function() {
+            document.getElementById('login-pwd').focus();
+        };
 
-        let savedUser = localStorage.getItem('currentUser') || "Default"; 
-        document.getElementById('userInput').value = savedUser;
-        let inventory = {}; 
-        let lastLocation = localStorage.getItem('lastLocation') || "";
+        // 監聽密碼框 Enter 鍵
+        document.getElementById('login-pwd').addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                checkLogin();
+            }
+        });
 
-        let appSettings = JSON.parse(localStorage.getItem('appSettings')) || {};
-        if (appSettings.decimals === undefined) appSettings.decimals = 2;
-        if (appSettings.minLen === undefined) appSettings.minLen = 4;
-        if (appSettings.maxLen === undefined) appSettings.maxLen = 50;
-        if (!appSettings.filenameFormat) appSettings.filenameFormat = "USER_YYYYMMDDHHmmss";
-        localStorage.setItem('appSettings', JSON.stringify(appSettings));
-
-        let html5QrcodeScanner = null;
-        let ocrStream = null;
-        let ocrAnalysisInterval = null;
-        let currentMode = 'barcode'; 
-        let videoTrack = null; 
-        let isTorchOn = false;
-        let isScanning = false; 
-        let isCameraActive = false;
-
-        loadInventoryForUser(savedUser);
-
-        // ==========================================
-        // 🔐 登入與鎖定邏輯
-        // ==========================================
         function checkLogin() {
-            const input = document.getElementById('loginPass');
-            if (input.value === APP_PASSWORD) {
-                document.getElementById('login-screen').style.display = 'none';
-                input.value = ""; // 清除密碼欄位
+            const input = document.getElementById('login-pwd');
+            const val = input.value;
+            if (val === APP_PASSWORD) {
+                // 登入成功
+                document.getElementById('login-overlay').style.display = 'none';
+                input.value = ""; // 清空密碼框
             } else {
-                alert("❌ 密碼錯誤 (Wrong Password)");
+                alert("❌ 密碼錯誤 (Password Incorrect)");
                 input.value = "";
                 input.focus();
             }
         }
 
-        // 綁定 Enter 鍵登入
-        document.getElementById('loginPass').addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                checkLogin();
-            }
-        });
-
-        function lockScreen() {
-            // 關閉任何開啟的相機
-            stopOcrCamera();
-            stopBarcodeScanner();
-            // 顯示鎖定畫面
-            document.getElementById('login-screen').style.display = 'flex';
-            document.getElementById('loginPass').focus();
-        }
-        // ==========================================
-
-        function changeUser(val) {
-            val = val.trim();
-            if (!val) val = "Default";
-            savedUser = val;
-            localStorage.setItem('currentUser', savedUser);
-            loadInventoryForUser(savedUser);
-            alert(`👋 已切換至使用者: ${savedUser}`);
-        }
-
-        function loadInventoryForUser(userId) {
-            let key = `inventory_${userId}`; 
-            inventory = JSON.parse(localStorage.getItem(key)) || {};
-            renderTable();
-        }
-
-        function saveCurrentInventory() {
-            let key = `inventory_${savedUser}`;
-            localStorage.setItem(key, JSON.stringify(inventory));
-        }
-
-        function openSettings() {
-            appSettings = JSON.parse(localStorage.getItem('appSettings')) || {};
-            document.getElementById('set_decimals').value = appSettings.decimals;
-            document.getElementById('set_minLen').value = appSettings.minLen;
-            document.getElementById('set_maxLen').value = appSettings.maxLen;
-            document.getElementById('set_filename').value = appSettings.filenameFormat;
+        function lockApp() {
+            document.getElementById('login-overlay').style.display = 'flex';
+            document.getElementById('login-pwd').focus();
             
-            document.getElementById('display_cloudUrl').value = SYSTEM_CONFIG.API_URL;
-            document.getElementById('display_sheetUrl').value = SYSTEM_CONFIG.SHEET_URL;
-            
-            document.getElementById('settingsModal').style.display = 'flex';
-        }
-
-        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-
-        function saveSettings() {
-            appSettings.decimals = parseInt(document.getElementById('set_decimals').value);
-            appSettings.minLen = parseInt(document.getElementById('set_minLen').value);
-            appSettings.maxLen = parseInt(document.getElementById('set_maxLen').value);
-            appSettings.filenameFormat = document.getElementById('set_filename').value.trim();
-            
-            localStorage.setItem('appSettings', JSON.stringify(appSettings));
-            closeSettings();
-            renderTable();
-            alert("✅ 設定已儲存");
-        }
-
-        function openCloudSheet() {
-            window.open(SYSTEM_CONFIG.SHEET_URL, '_blank');
-        }
-
-        function switchMode(mode) {
-            currentMode = mode;
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector(`.mode-btn[onclick="switchMode('${mode}')"]`).classList.add('active');
-
-            const readerEl = document.getElementById('reader');
-            const videoEl = document.getElementById('ocr-video');
-            const overlayEl = document.getElementById('ocr-overlay');
-            const flashBtn = document.getElementById('btn-flash');
-
-            stopOcrCamera();
-            stopBarcodeScanner().then(() => {
-                if (mode === 'barcode') {
-                    videoEl.style.display = 'none';
-                    overlayEl.style.display = 'none';
-                    readerEl.style.display = 'block';
-                    flashBtn.style.display = 'none';
-                    startBarcodeScanner();
-                } else {
-                    readerEl.style.display = 'none';
-                    videoEl.style.display = 'block';
-                    overlayEl.style.display = 'block';
-                    startOcrCamera().then(() => {
-                        if (videoTrack && videoTrack.getCapabilities().torch) {
-                            flashBtn.style.display = 'flex';
-                        }
-                    });
-                }
-                isCameraActive = true;
-            });
-        }
-
-        function handleViewportClick() {
-            if (!isCameraActive) { switchMode(currentMode); return; }
-            if (currentMode === 'ocr') {
-                if (isScanning) { captureAndProcess(); } 
-                else { resumeScanning(); }
+            // 鎖定時停止相機以省電
+            if (isCameraActive) {
+                // 模擬點擊切換來關閉相機，或者直接暫停
+                // 這裡我們簡單處理，不強制關閉相機，只遮蔽畫面
+                // 如果需要強制關閉相機，可以呼叫 stopScanning()
             }
         }
-
-        function stopScanning() {
-            isScanning = false;
-            const video = document.getElementById('ocr-video');
-            video.pause(); 
-            clearInterval(ocrAnalysisInterval); 
-            const box = document.getElementById('guideBox');
-            const text = document.getElementById('guideText');
-            box.classList.add('paused');
-            box.classList.remove('ready');
-            text.innerText = "👆 點擊畫面繼續偵測 Tap to Resume";
-        }
-
-        function resumeScanning() {
-            isScanning = true;
-            const video = document.getElementById('ocr-video');
-            video.play(); 
-            startImageAnalysis(video); 
-            const box = document.getElementById('guideBox');
-            const text = document.getElementById('guideText');
-            box.classList.remove('paused');
-            text.innerText = "請以中心線覆蓋文字";
-        }
-
-        let html5QrCode = null; 
-        function startBarcodeScanner() {
-            if (!html5QrCode) { html5QrCode = new Html5Qrcode("reader"); }
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
-                html5QrCode.pause(); 
-                saveDataPrompt(decodedText); 
+        // ========================================== 
+ 
+        loadInventoryForUser(savedUser); 
+ 
+        function changeUser(val) { 
+            val = val.trim(); 
+            if (!val) val = "Default"; 
+            savedUser = val; 
+            localStorage.setItem('currentUser', savedUser); 
+            loadInventoryForUser(savedUser); 
+            alert(`👋 已切換至使用者: ${savedUser}`); 
+        } 
+ 
+        function loadInventoryForUser(userId) { 
+            let key = `inventory_${userId}`;  
+            inventory = JSON.parse(localStorage.getItem(key)) || {}; 
+            renderTable(); 
+        } 
+ 
+        function saveCurrentInventory() { 
+            let key = `inventory_${savedUser}`; 
+            localStorage.setItem(key, JSON.stringify(inventory)); 
+        } 
+ 
+        function openSettings() { 
+            // 讀取設定 
+            appSettings = JSON.parse(localStorage.getItem('appSettings')) || {}; 
+ 
+            document.getElementById('set_decimals').value = appSettings.decimals; 
+            document.getElementById('set_minLen').value = appSettings.minLen; 
+            document.getElementById('set_maxLen').value = appSettings.maxLen; 
+            document.getElementById('set_filename').value = appSettings.filenameFormat; 
+              
+            // 顯示寫死的網址 (僅供查看，不可修改) 
+            document.getElementById('display_cloudUrl').value = SYSTEM_CONFIG.API_URL; 
+            document.getElementById('display_sheetUrl').value = SYSTEM_CONFIG.SHEET_URL; 
+              
+            document.getElementById('settingsModal').style.display = 'flex'; 
+        } 
+ 
+        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; } 
+ 
+        function saveSettings() { 
+            appSettings.decimals = parseInt(document.getElementById('set_decimals').value); 
+            appSettings.minLen = parseInt(document.getElementById('set_minLen').value); 
+            appSettings.maxLen = parseInt(document.getElementById('set_maxLen').value); 
+            appSettings.filenameFormat = document.getElementById('set_filename').value.trim(); 
+              
+            // 注意：我們不需要儲存網址，因為已經寫死在程式碼中 
+ 
+            localStorage.setItem('appSettings', JSON.stringify(appSettings)); 
+              
+            closeSettings(); 
+            renderTable(); 
+            alert("✅ 設定已儲存"); 
+        } 
+ 
+        function openCloudSheet() { 
+            // 直接開啟寫死的網址 
+            window.open(SYSTEM_CONFIG.SHEET_URL, '_blank'); 
+        } 
+ 
+        function switchMode(mode) { 
+            currentMode = mode; 
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); 
+            document.querySelector(`.mode-btn[onclick="switchMode('${mode}')"]`).classList.add('active'); 
+ 
+            const readerEl = document.getElementById('reader'); 
+            const videoEl = document.getElementById('ocr-video'); 
+            const overlayEl = document.getElementById('ocr-overlay'); 
+            const flashBtn = document.getElementById('btn-flash'); 
+ 
+            stopOcrCamera(); 
+            stopBarcodeScanner().then(() => { 
+                if (mode === 'barcode') { 
+                    videoEl.style.display = 'none'; 
+                    overlayEl.style.display = 'none'; 
+                    readerEl.style.display = 'block'; 
+                    flashBtn.style.display = 'none'; 
+                    startBarcodeScanner(); 
+                } else { 
+                    readerEl.style.display = 'none'; 
+                    videoEl.style.display = 'block'; 
+                    overlayEl.style.display = 'block'; 
+                    startOcrCamera().then(() => { 
+                        if (videoTrack && videoTrack.getCapabilities().torch) { 
+                            flashBtn.style.display = 'flex'; 
+                        } 
+                    }); 
+                } 
+                isCameraActive = true; 
+            }); 
+        } 
+ 
+        function handleViewportClick() { 
+            if (!isCameraActive) { switchMode(currentMode); return; } 
+            if (currentMode === 'ocr') { 
+                if (isScanning) { captureAndProcess(); }  
+                else { resumeScanning(); } 
+            } 
+        } 
+ 
+        function stopScanning() { 
+            isScanning = false; 
+            const video = document.getElementById('ocr-video'); 
+            video.pause();  
+            clearInterval(ocrAnalysisInterval);  
+            const box = document.getElementById('guideBox'); 
+            const text = document.getElementById('guideText'); 
+            box.classList.add('paused'); 
+            box.classList.remove('ready'); 
+            text.innerText = "👆 點擊畫面繼續偵測 Tap to Resume"; 
+        } 
+ 
+        function resumeScanning() { 
+            isScanning = true; 
+            const video = document.getElementById('ocr-video'); 
+            video.play();  
+            startImageAnalysis(video);  
+            const box = document.getElementById('guideBox'); 
+            const text = document.getElementById('guideText'); 
+            box.classList.remove('paused'); 
+            text.innerText = "請以中心線覆蓋文字"; 
+        } 
+ 
+        let html5QrCode = null;  
+        function startBarcodeScanner() { 
+            if (!html5QrCode) { html5QrCode = new Html5Qrcode("reader"); } 
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } }; 
+            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => { 
+                html5QrCode.pause();  
+                saveDataPrompt(decodedText);  
             }, () => {}).catch(err => {
                 if (err.toString().includes("NotAllowed") || err.toString().includes("Permission")) {
-                    alert("❌ 無法存取相機，請至設定開啟權限");
+                    alert("❌ 無法存取相機，請至設定開啟權限\n(Camera access denied. Please enable permission in settings.)");
                 } else {
-                    console.log("Barcode Start Error: " + err);
+                    alert("Barcode Start Error: " + err);
                 }
-            });
-        }
-
-        function stopBarcodeScanner() {
-            if (html5QrCode && html5QrCode.isScanning) {
-                return html5QrCode.stop().catch(err => console.log("Stop failed", err));
-            }
-            return Promise.resolve();
-        }
-
-        function resumeBarcodeScanner() { if (html5QrCode) html5QrCode.resume(); }
-
-        async function startOcrCamera() {
-            try {
-                const constraints = { video: { facingMode: "environment", width: { ideal: 3840 }, height: { ideal: 2160 }, focusMode: "continuous" } };
-                ocrStream = await navigator.mediaDevices.getUserMedia(constraints);
-                const video = document.getElementById('ocr-video');
-                video.srcObject = ocrStream;
-                videoTrack = ocrStream.getVideoTracks()[0];
-                isScanning = true;
-                startImageAnalysis(video);
+            }); 
+        } 
+ 
+        function stopBarcodeScanner() { 
+            if (html5QrCode && html5QrCode.isScanning) { 
+                return html5QrCode.stop().catch(err => console.log("Stop failed", err)); 
+            } 
+            return Promise.resolve(); 
+        } 
+ 
+        function resumeBarcodeScanner() { if (html5QrCode) html5QrCode.resume(); } 
+ 
+        async function startOcrCamera() { 
+            try { 
+                const constraints = { video: { facingMode: "environment", width: { ideal: 3840 }, height: { ideal: 2160 }, focusMode: "continuous" } }; 
+                ocrStream = await navigator.mediaDevices.getUserMedia(constraints); 
+                const video = document.getElementById('ocr-video'); 
+                video.srcObject = ocrStream; 
+                videoTrack = ocrStream.getVideoTracks()[0]; 
+                isScanning = true; 
+                startImageAnalysis(video); 
             } catch (err) { 
-                if (err.name === 'NotAllowedError' || err.toString().includes("Permission")) {
-                    alert("❌ 無法存取相機，請至設定開啟權限");
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.toString().includes("Permission")) {
+                    alert("❌ 無法存取相機，請至設定開啟權限\n(Camera access denied. Please enable permission in settings.)");
                 } else {
-                    console.log("Camera Error: " + err); 
+                    alert("Camera Error: " + err); 
                 }
-            }
-        }
-
-        function stopOcrCamera() {
-            if (ocrStream) { ocrStream.getTracks().forEach(track => track.stop()); ocrStream = null; }
-            if (ocrAnalysisInterval) { clearInterval(ocrAnalysisInterval); ocrAnalysisInterval = null; }
-            videoTrack = null;
-            isTorchOn = false;
-            document.getElementById('btn-flash').classList.remove('active');
-        }
-
-        function toggleTorch() {
-            if (!videoTrack) return;
-            isTorchOn = !isTorchOn;
-            videoTrack.applyConstraints({ advanced: [{ torch: isTorchOn }] }).catch(e => { isTorchOn = !isTorchOn; });
-            const btn = document.getElementById('btn-flash');
-            if(isTorchOn) { btn.style.backgroundColor = "#fff"; btn.style.color = "#000"; } 
-            else { btn.style.backgroundColor = "#ffc107"; btn.style.color = "#333"; }
-        }
-
-        function startImageAnalysis(video) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            if (ocrAnalysisInterval) clearInterval(ocrAnalysisInterval);
-            ocrAnalysisInterval = setInterval(() => {
-                if (video.readyState === 4 && isScanning) { 
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    const cropHeight = canvas.height * 0.045; 
-                    const cropY = (canvas.height - cropHeight) / 2;
-                    ctx.drawImage(video, 0, 0);
-                    const imgData = ctx.getImageData(0, cropY, canvas.width, cropHeight);
-                    const score = calculateContrast(imgData.data);
-                    updateGuideUI(score > 30); 
-                }
-            }, 200);
-        }
-
-        function calculateContrast(data) {
-            let sum = 0, count = 0;
-            for (let i = 0; i < data.length; i += 80) {
-                sum += (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114); count++;
-            }
-            const mean = sum / count;
-            let variance = 0;
-            for (let i = 0; i < data.length; i += 80) {
-                const gray = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114);
-                variance += Math.pow(gray - mean, 2);
-            }
-            return Math.sqrt(variance / count);
-        }
-
-        function updateGuideUI(isGoodQuality) {
-            const box = document.getElementById('guideBox');
-            const text = document.getElementById('guideText');
-            if (!isScanning) return; 
-            if (isGoodQuality) { box.classList.add('ready'); text.innerText = "✅ Ready / Tap Screen"; } 
-            else { box.classList.remove('ready'); text.innerText = "請以中心線覆蓋文字"; }
-        }
-
-        function captureAndProcess() {
-            const video = document.getElementById('ocr-video');
-            if (currentMode !== 'ocr' || video.style.display === 'none') return;
-
-            video.pause();
-            stopScanning(); 
-
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-
-            const cropHeight = canvas.height * 0.045; 
-            const cropY = (canvas.height - cropHeight) / 2;
-
-            const cropCanvas = document.createElement('canvas');
-            cropCanvas.width = canvas.width;
-            cropCanvas.height = cropHeight;
-            const cropCtx = cropCanvas.getContext('2d');
-            cropCtx.drawImage(canvas, 0, cropY, canvas.width, cropHeight, 0, 0, cropCanvas.width, cropCanvas.height);
-
-            document.getElementById('loading-overlay').style.display = 'flex';
-            document.getElementById('loading-text').innerText = "分析中... Analyzing...";
-            
-            Tesseract.recognize(
-                cropCanvas.toDataURL('image/jpeg'),
-                'eng',
-                { 
-                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-',
-                    tessedit_pageseg_mode: '7' 
-                }
-            ).then(({ data: { text } }) => {
-                document.getElementById('loading-overlay').style.display = 'none';
-                processResult(text);
-            }).catch(err => {
-                document.getElementById('loading-overlay').style.display = 'none';
-                alert("OCR Error: " + err);
-            });
-        }
-
-        function processResult(text) {
-             let cleanText = text.replace(/[^a-zA-Z0-9.-]/g, "");
-             
-             // 💡 修改：稍微放寬判斷 (只要有字元且長度符合即可)
-             if (cleanText.length < appSettings.minLen) {
-                 alert("⚠️ 未偵測到清晰文字，請重試");
-                 return;
-             }
-
-             // 嘗試尋找標準格式，如果找不到就用原文字
-             const strongPattern = /[A-Z0-9]+(-[A-Z0-9.]+){3,}/;
-             const match = cleanText.match(strongPattern);
-             if (match) { cleanText = match[0]; } 
-             
-             cleanText = cleanText.replace(/^[-.]+|[-.]+$/g, "");
-
-            if (!cleanText) { alert("⚠️ 未偵測到文字，請重試"); return; }
-
-            saveDataPrompt(cleanText);
-        }
-
-        function renderTable() {
-            const tbody = document.querySelector("#inventoryTable tbody");
-            tbody.innerHTML = "";
-            Object.keys(inventory).reverse().forEach(k => {
-                let item = inventory[k];
-                let qtyDisplay = parseFloat(item.qty).toFixed(appSettings.decimals);
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="code-col">
-                            <span class="editable-code" onclick="saveDataPrompt('${k}')">${k}</span>
-                            <span style="font-size:0.7em; color:#999;">(${k.length})</span>
-                        </td>
-                        <td class="loc-col" style="color:#ffc107;">${item.location || '-'}</td>
-                        <td class="name-col">${item.name}</td>
-                        <td class="qty-col">${qtyDisplay}</td>
-                        <td class="action-col">
-                            <button class="tbl-btn edit" onclick="saveDataPrompt('${k}')">✏️</button>
-                            <button class="tbl-btn del" onclick="deleteItem('${k}')">🗑️</button>
-                        </td>
-                    </tr>`;
-            });
-        }
-
-        function deleteItem(code) {
-            if(confirm(`確定刪除 ${code} ?`)) {
-                delete inventory[code];
-                saveCurrentInventory();
-                renderTable();
-            }
-        }
-
-        function saveDataPrompt(initialText) {
-            setTimeout(() => {
-                let code = prompt("1️⃣ 確認原始碼 (Code):", initialText);
-                if (code === null) return resumeScan(); 
-                code = code.replace(/[^a-zA-Z0-9.-]/g, "").trim();
-                if (!code) return resumeScan();
-
-                if (code.length < appSettings.minLen) {
-                    alert(`❌ 字元過短 (<${appSettings.minLen})`);
-                    return resumeScan();
-                }
-
-                let item = inventory[code];
-                let defaultName = item ? item.name : (code.split('-')[0] || "");
-                let defaultQty = item ? item.qty.toString() : "";
-                let defaultLoc = item ? item.location : lastLocation;
-
-                let name = prompt(`2️⃣ 輸入品名 (Name):`, defaultName);
-                if (name === null) return resumeScan();
-
-                let qtyStr = prompt(`3️⃣ 輸入數量 (Qty):`, defaultQty);
-                if (qtyStr === null) return resumeScan();
-                let qty = parseFloat(qtyStr);
-                if (isNaN(qty)) qty = 1.00;
-
-                let location = prompt(`4️⃣ 輸入庫位 (Location):`, defaultLoc);
-                if (location === null) return resumeScan();
-                location = location.trim();
-                
-                if (location) {
-                    lastLocation = location;
-                    localStorage.setItem('lastLocation', lastLocation);
-                }
-
-                inventory[code] = {
-                    name: name || "No Name",
-                    qty: qty,
-                    location: location
-                };
-
-                saveCurrentInventory();
-                renderTable();
-                resumeScan();
-
-            }, 100);
-        }
-
-        function resumeScan() {
-             if (currentMode === 'barcode') {
-                 resumeBarcodeScanner();
-             } 
-        }
-
-        function uploadToCloud() {
-            if (Object.keys(inventory).length === 0) return alert("❌ 無資料");
-            if (!savedUser || savedUser === "Default") return alert("⚠️ 請輸入人員代號");
-            
-            if(!confirm("確定上傳至雲端?")) return;
-
-            document.getElementById('loading-overlay').style.display = 'flex';
-            document.getElementById('loading-text').innerText = "上傳中... Uploading...";
-
-            const payload = {
-                user: savedUser,
-                items: inventory
-            };
-
-            fetch(SYSTEM_CONFIG.API_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('loading-overlay').style.display = 'none';
-                alert("✅ " + data);
-            })
-            .catch(error => {
-                document.getElementById('loading-overlay').style.display = 'none';
-                alert("❌ 上傳失敗: " + error);
-            });
-        }
-
-        function exportToExcel() {
-            if (Object.keys(inventory).length === 0) { return alert("❌ 無資料 (No Data)"); }
-            if (!savedUser || savedUser === "Default") { return alert("⚠️ 請先輸入人員代號！"); }
-
-            try {
-                let csv = "\uFEFFCode,Spec,Location,Name,Qty\n";
-                for (let k in inventory) {
-                      let safeName = (inventory[k].name || "").replace(/,/g, " ").replace(/"/g, "");
-                      let loc = (inventory[k].location || "").replace(/,/g, " ");
-                      let parts = k.split('-');
-                      let middleTxt = parts.length >= 3 ? parts[1] : "";
-                      let qtyFormatted = inventory[k].qty.toFixed(appSettings.decimals);
-
-                      csv += '="' + k + '","' + middleTxt + '","' + loc + '","' + safeName + '",' + qtyFormatted + '\n';
-                }
-                let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                let url = URL.createObjectURL(blob);
-                let link = document.createElement("a");
-                link.href = url;
-                
-                const now = new Date();
-                const YYYY = now.getFullYear();
-                const MM = String(now.getMonth() + 1).padStart(2, '0');
-                const DD = String(now.getDate()).padStart(2, '0');
-                const HH = String(now.getHours()).padStart(2, '0');
-                const mm = String(now.getMinutes()).padStart(2, '0');
-                const ss = String(now.getSeconds()).padStart(2, '0');
-                
-                let filename = appSettings.filenameFormat;
-                filename = filename.replace("USER", savedUser).replace("YYYY", YYYY).replace("MM", MM).replace("DD", DD).replace("HH", HH).replace("mm", mm).replace("ss", ss).replace("SS", ss);
-                if (!filename.endsWith(".csv")) filename += ".csv";
-
-                if(!confirm(`準備匯出檔案：\n📄 ${filename}\n\n是否繼續？`)) return;
-
-                link.download = filename;
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                setTimeout(function() {
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                    alert("✅ 匯出完成: " + filename);
-                }, 100);
-            } catch (err) { alert("匯出錯誤: " + err); }
-        }
-
-        function clearData() {
-            if(confirm("確定清除所有資料？ Clear All?")) { 
-                inventory={}; 
-                saveCurrentInventory();
+            } 
+        } 
+ 
+        function stopOcrCamera() { 
+            if (ocrStream) { ocrStream.getTracks().forEach(track => track.stop()); ocrStream = null; } 
+            if (ocrAnalysisInterval) { clearInterval(ocrAnalysisInterval); ocrAnalysisInterval = null; } 
+            videoTrack = null; 
+            isTorchOn = false; 
+            document.getElementById('btn-flash').classList.remove('active'); 
+        } 
+ 
+        function toggleTorch() { 
+            if (!videoTrack) return; 
+            isTorchOn = !isTorchOn; 
+            videoTrack.applyConstraints({ advanced: [{ torch: isTorchOn }] }).catch(e => { isTorchOn = !isTorchOn; }); 
+            const btn = document.getElementById('btn-flash'); 
+            if(isTorchOn) { btn.style.backgroundColor = "#fff"; btn.style.color = "#000"; }  
+            else { btn.style.backgroundColor = "#ffc107"; btn.style.color = "#333"; } 
+        } 
+ 
+        function startImageAnalysis(video) { 
+            const canvas = document.createElement('canvas'); 
+            const ctx = canvas.getContext('2d', { willReadFrequently: true }); 
+            if (ocrAnalysisInterval) clearInterval(ocrAnalysisInterval); 
+            ocrAnalysisInterval = setInterval(() => { 
+                if (video.readyState === 4 && isScanning) {  
+                    canvas.width = video.videoWidth; 
+                    canvas.height = video.videoHeight; 
+                    const cropHeight = canvas.height * 0.045;  
+                    const cropY = (canvas.height - cropHeight) / 2; 
+                    ctx.drawImage(video, 0, 0); 
+                    const imgData = ctx.getImageData(0, cropY, canvas.width, cropHeight); 
+                    const score = calculateContrast(imgData.data); 
+                    updateGuideUI(score > 30);  
+                } 
+            }, 200); 
+        } 
+ 
+        function calculateContrast(data) { 
+            let sum = 0, count = 0; 
+            for (let i = 0; i < data.length; i += 80) { 
+                sum += (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114); count++; 
+            } 
+            const mean = sum / count; 
+            let variance = 0; 
+            for (let i = 0; i < data.length; i += 80) { 
+                const gray = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114); 
+                variance += Math.pow(gray - mean, 2); 
+            } 
+            return Math.sqrt(variance / count); 
+        } 
+ 
+        function updateGuideUI(isGoodQuality) { 
+            const box = document.getElementById('guideBox'); 
+            const text = document.getElementById('guideText'); 
+            if (!isScanning) return;  
+            if (isGoodQuality) { box.classList.add('ready'); text.innerText = "✅ Ready / Tap Screen"; }  
+            else { box.classList.remove('ready'); text.innerText = "請以中心線覆蓋文字"; } 
+        } 
+ 
+        function captureAndProcess() { 
+            const video = document.getElementById('ocr-video'); 
+            if (currentMode !== 'ocr' || video.style.display === 'none') return; 
+ 
+            video.pause(); 
+            stopScanning();  
+ 
+            const canvas = document.createElement('canvas'); 
+            const ctx = canvas.getContext('2d'); 
+            canvas.width = video.videoWidth; 
+            canvas.height = video.videoHeight; 
+            ctx.drawImage(video, 0, 0); 
+ 
+            const cropHeight = canvas.height * 0.045;  
+            const cropY = (canvas.height - cropHeight) / 2; 
+ 
+            const cropCanvas = document.createElement('canvas'); 
+            cropCanvas.width = canvas.width; 
+            cropCanvas.height = cropHeight; 
+            const cropCtx = cropCanvas.getContext('2d'); 
+            cropCtx.drawImage(canvas, 0, cropY, canvas.width, cropHeight, 0, 0, cropCanvas.width, cropCanvas.height); 
+ 
+            document.getElementById('loading-overlay').style.display = 'flex'; 
+            document.getElementById('loading-text').innerText = "分析中... Analyzing..."; 
+              
+            Tesseract.recognize( 
+                cropCanvas.toDataURL('image/jpeg'), 
+                'eng', 
+                {  
+                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-', 
+                    tessedit_pageseg_mode: '7'  
+                } 
+            ).then(({ data: { text } }) => { 
+                document.getElementById('loading-overlay').style.display = 'none'; 
+                processResult(text); 
+            }).catch(err => { 
+                document.getElementById('loading-overlay').style.display = 'none'; 
+                alert("OCR Error: " + err); 
+            }); 
+        } 
+ 
+        function processResult(text) { 
+             let cleanText = text.replace(/[^a-zA-Z0-9.-]/g, ""); 
+             const strongPattern = /[A-Z0-9]+(-[A-Z0-9.]+){3,}/; 
+             const match = cleanText.match(strongPattern); 
+             if (match) { cleanText = match[0]; }  
+             cleanText = cleanText.replace(/^[-.]+|[-.]+$/g, ""); 
+ 
+            if (!cleanText) { alert("⚠️ 未偵測到文字，請重試"); return; } 
+ 
+            saveDataPrompt(cleanText); 
+        } 
+ 
+        function renderTable() { 
+            const tbody = document.querySelector("#inventoryTable tbody"); 
+            tbody.innerHTML = ""; 
+            Object.keys(inventory).reverse().forEach(k => { 
+                let item = inventory[k]; 
+                let qtyDisplay = parseFloat(item.qty).toFixed(appSettings.decimals); 
+                  
+                tbody.innerHTML += ` 
+                    <tr> 
+                        <td class="code-col"> 
+                            <span class="editable-code" onclick="saveDataPrompt('${k}')">${k}</span> 
+                            <span style="font-size:0.7em; color:#999;">(${k.length})</span> 
+                        </td> 
+                        <td class="loc-col" style="color:#ffc107;">${item.location || '-'}</td> 
+                        <td class="name-col">${item.name}</td> 
+                        <td class="qty-col">${qtyDisplay}</td> 
+                        <td class="action-col"> 
+                            <button class="tbl-btn edit" onclick="saveDataPrompt('${k}')">✏️</button> 
+                            <button class="tbl-btn del" onclick="deleteItem('${k}')">🗑️</button> 
+                        </td> 
+                    </tr>`; 
+            }); 
+        } 
+ 
+        function deleteItem(code) { 
+            if(confirm(`確定刪除 ${code} ?`)) { 
+                delete inventory[code]; 
+                saveCurrentInventory(); 
                 renderTable(); 
-            }
-        }
-
-        // ==========================================
-        // 🚀 程式初始化入口 (Bug Fix & Login Init)
-        // ==========================================
-        document.addEventListener('DOMContentLoaded', () => {
-            // 預設載入使用者上次的位置
-            if(lastLocation) {
-                console.log("Last Location loaded:", lastLocation);
-            }
-
-            // 確保一開始是條碼模式
-            switchMode('barcode');
-            
-            // 畫面初始化：確保鎖定畫面顯示 (因為 CSS 預設是 flex, 但為了保險起見)
-            document.getElementById('login-screen').style.display = 'flex';
-        });
-
-        // 監聽網頁關閉或重新整理，確保相機資源釋放
-        window.addEventListener('beforeunload', () => {
-            stopOcrCamera();
-            stopBarcodeScanner();
-        });
-
-    </script>
-</body>
+            } 
+        } 
+ 
+        function saveDataPrompt(initialText) { 
+            setTimeout(() => { 
+                let code = prompt("1️⃣ 確認原始碼 (Code):", initialText); 
+                if (code === null) return resumeScan();  
+                code = code.replace(/[^a-zA-Z0-9.-]/g, "").trim(); 
+                if (!code) return resumeScan(); 
+ 
+                if (code.length < appSettings.minLen) { 
+                    alert(`❌ 字元過短 (<${appSettings.minLen})`); 
+                    return resumeScan(); 
+                } 
+ 
+                let item = inventory[code]; 
+                let defaultName = item ? item.name : (code.split('-')[0] || ""); 
+                let defaultQty = item ? item.qty.toString() : ""; 
+                let defaultLoc = item ? item.location : lastLocation; 
+ 
+                let name = prompt(`2️⃣ 輸入品名 (Name):`, defaultName); 
+                if (name === null) return resumeScan(); 
+ 
+                let qtyStr = prompt(`3️⃣ 輸入數量 (Qty):`, defaultQty); 
+                if (qtyStr === null) return resumeScan(); 
+                let qty = parseFloat(qtyStr); 
+                if (isNaN(qty)) qty = 1.00; 
+ 
+                let location = prompt(`4️⃣ 輸入庫位 (Location):`, defaultLoc); 
+                if (location === null) return resumeScan(); 
+                location = location.trim(); 
+                  
+                if (location) { 
+                    lastLocation = location; 
+                    localStorage.setItem('lastLocation', lastLocation); 
+                } 
+ 
+                inventory[code] = { 
+                    name: name || "No Name", 
+                    qty: qty, 
+                    location: location 
+                }; 
+ 
+                saveCurrentInventory(); 
+                renderTable(); 
+                resumeScan(); 
+ 
+            }, 100); 
+        } 
+ 
+        function resumeScan() { 
+             if (currentMode === 'barcode') { 
+                 resumeBarcodeScanner(); 
+             }  
+        } 
+ 
+        function uploadToCloud() { 
+            if (Object.keys(inventory).length === 0) return alert("❌ 無資料"); 
+            if (!savedUser || savedUser === "Default") return alert("⚠️ 請輸入人員代號"); 
+              
+            // 直接使用寫死的 SYSTEM_CONFIG.API_URL 
+            if(!confirm("確定上傳至雲端?")) return; 
+ 
+            document.getElementById('loading-overlay').style.display = 'flex'; 
+            document.getElementById('loading-text').innerText = "上傳中... Uploading..."; 
+ 
+            const payload = { 
+                user: savedUser, 
+                items: inventory 
+            }; 
+ 
+            fetch(SYSTEM_CONFIG.API_URL, { 
+                method: 'POST', 
+                body: JSON.stringify(payload) 
+            }) 
+            .then(response => response.text()) 
+            .then(data => { 
+                document.getElementById('loading-overlay').style.display = 'none'; 
+                alert("✅ " + data); 
+            }) 
+            .catch(error => { 
+                document.getElementById('loading-overlay').style.display = 'none'; 
+                alert("❌ 上傳失敗: " + error); 
+            }); 
+        } 
+ 
+        function exportToExcel() { 
+            if (Object.keys(inventory).length === 0) { return alert("❌ 無資料 (No Data)"); } 
+            if (!savedUser || savedUser === "Default") { return alert("⚠️ 請先輸入人員代號！"); } 
+ 
+            alert("1. 準備匯出... (Starting Export)"); 
+            try { 
+                let csv = "\uFEFFCode,Spec,Location,Name,Qty\n"; 
+                for (let k in inventory) { 
+                      let safeName = (inventory[k].name || "").replace(/,/g, " ").replace(/"/g, ""); 
+                      let loc = (inventory[k].location || "").replace(/,/g, " "); 
+                      let parts = k.split('-'); 
+                      let middleTxt = parts.length >= 3 ? parts[1] : ""; 
+                      let qtyFormatted = inventory[k].qty.toFixed(appSettings.decimals); 
+ 
+                      csv += '="' + k + '","' + middleTxt + '","' + loc + '","' + safeName + '",' + qtyFormatted + '\n'; 
+                } 
+                let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); 
+                let url = URL.createObjectURL(blob); 
+                let link = document.createElement("a"); 
+                link.href = url; 
+                  
+                const now = new Date(); 
+                const YYYY = now.getFullYear(); 
+                const MM = String(now.getMonth() + 1).padStart(2, '0'); 
+                const DD = String(now.getDate()).padStart(2, '0'); 
+                const HH = String(now.getHours()).padStart(2, '0'); 
+                const mm = String(now.getMinutes()).padStart(2, '0'); 
+                const ss = String(now.getSeconds()).padStart(2, '0'); 
+                  
+                let filename = appSettings.filenameFormat; 
+                filename = filename.replace("USER", savedUser).replace("YYYY", YYYY).replace("MM", MM).replace("DD", DD).replace("HH", HH).replace("mm", mm).replace("ss", ss).replace("SS", ss); 
+                if (!filename.endsWith(".csv")) filename += ".csv"; 
+ 
+                if(!confirm(`準備匯出檔案：\n📄 ${filename}\n\n是否繼續？`)) return; 
+ 
+                link.download = filename; 
+                link.style.visibility = 'hidden'; 
+                document.body.appendChild(link); 
+                setTimeout(function() { 
+                    link.click(); 
+                    document.body.removeChild(link); 
+                    URL.revokeObjectURL(url); 
+                    alert("✅ 匯出完成: " + filename); // 🐛 Fixed typo: fileName -> filename
+                }, 100); 
+            } catch (err) { alert("匯出錯誤: " + err); } 
+        } 
+ 
+        function clearData() { 
+            if(confirm("確定清除所有資料？ Clear All?")) {  
+                inventory={};  
+                saveCurrentInventory(); 
+                renderTable();  
+            } 
+        } 
+ 
+        currentMode = 'ocr'; 
+        document.querySelector('.mode-btn[onclick="switchMode(\'ocr\')"]').classList.add('active'); 
+        document.querySelector('.mode-btn[onclick="switchMode(\'barcode\')"]').classList.remove('active'); 
+        document.getElementById('guideText').innerText = "👆 點擊畫面啟動相機 Tap to Start"; 
+        renderTable(); 
+    </script> 
+</body> 
 </html>
